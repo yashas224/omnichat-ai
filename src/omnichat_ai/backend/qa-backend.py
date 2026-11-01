@@ -5,6 +5,7 @@ from fastapi import FastAPI, Path
 
 from omnichat_ai.backend.dto import QARequest
 from omnichat_ai.agent.graph import agent
+from omnichat_ai.agent.utils.callback import callback
 
 import re
 import unicodedata
@@ -26,3 +27,7 @@ async def root(req:QARequest,
 
     result=app.state.agent.invoke({"messages":[req.user_query]},config=config)
     return {"result": result["return_result"],"flow":flow}
+
+@app.get("/metrics")
+async def metrics():
+    return callback.get_metrics()

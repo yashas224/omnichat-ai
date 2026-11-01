@@ -2,11 +2,15 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langchain_tavily import TavilySearch
 from langchain.agents import create_agent
+from omnichat_ai.agent.utils.callback import AgentMetricsCallback
 from omnichat_ai.db import checkpointer
 from omnichat_ai.agent.utils.dto import QAChatAgentResponse
 from omnichat_ai.agent.state.agent_state import MessagesState
 from openai import OpenAI
 from dotenv import load_dotenv
+from langchain.agents.middleware import HumanInTheLoopMiddleware 
+from langchain_core.runnables.config import merge_configs
+from omnichat_ai.agent.utils.callback import callback
 load_dotenv()
 client = OpenAI()
 
@@ -44,11 +48,15 @@ system_prompt= """
     - Reply in the same language the user writes in.
     """
 qa_agent = create_agent(model="openai:gpt-5.5", tools=[web_Search]
-                            ,system_prompt=system_prompt,response_format=QAChatAgentResponse,checkpointer=checkpointer)
-
+                            ,system_prompt=system_prompt
+                            ,response_format=QAChatAgentResponse
+                            ,checkpointer=checkpointer
+                            )
 def qa_chat_node(state: MessagesState,config:RunnableConfig):
+    
     result = qa_agent.invoke(
         {"messages": state["messages"]}
+        ,config=merge_configs(config,{"callbacks": [callback]})
     )
     response:QAChatAgentResponse= result["structured_response"]
 
