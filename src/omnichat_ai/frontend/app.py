@@ -28,16 +28,19 @@ def ask_backend(flow: str, user_id: str, user_query: str):
     return response.json()["result"]
 
 
-def get_metrics():
-    response = requests.get(f"{BACKEND_URL}/metrics", timeout=METRICS_TIMEOUT_SECONDS)
+def get_metrics(user_id: str):
+    response = requests.get(f"{BACKEND_URL}/metrics/{quote(user_id, safe='')}", timeout=METRICS_TIMEOUT_SECONDS)
     response.raise_for_status()
     return response.json()
 
 
-def render_metrics():
+def render_metrics(user_id: str, user_id_valid: bool):
     st.subheader("LLM Metrics")
+    if not user_id_valid:
+        st.caption("Enter a valid User ID to see metrics.")
+        return
     try:
-        metrics = get_metrics()
+        metrics = get_metrics(user_id)
     except requests.RequestException:
         st.caption("Metrics are unavailable.")
         return
@@ -125,4 +128,4 @@ if messages or question:
 
 # Rendered last so the numbers include the question answered in this run
 with metrics_section:
-    render_metrics()
+    render_metrics(user_id, user_id_valid)

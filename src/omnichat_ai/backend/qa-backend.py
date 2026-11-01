@@ -23,11 +23,11 @@ app = FastAPI(lifespan=lifespan)
 async def root(req:QARequest,
                flow: Annotated[str, Path(title="Agent Flow selected")],
                user_id: Annotated[str, Path(title="The ID of the user", min_length=5)]):
-    config = {"configurable": {"thread_id": str(user_id)}}
+    config = {"configurable": {"thread_id": str(user_id)},"metadata": {"user_id": user_id}}
 
     result=app.state.agent.invoke({"messages":[req.user_query]},config=config)
     return {"result": result["return_result"],"flow":flow}
 
-@app.get("/metrics")
-async def metrics():
-    return callback.get_metrics()
+@app.get("/metrics/{user_id}")
+async def metrics(user_id: Annotated[str, Path(title="The ID of the user", min_length=5)]):
+    return callback.get_metrics(user_id)
