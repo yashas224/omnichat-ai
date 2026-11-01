@@ -1,34 +1,28 @@
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from typing import Annotated
+
+from fastapi import FastAPI, Path
 
 from omnichat_ai.backend.dto import QARequest
-
-app = FastAPI()
+from omnichat_ai.agent.graph import agent
 
 import re
 import unicodedata
 
 MAX_LENGTH = 5000
 
-def basic_sanitize(query: str):
-    if not isinstance(query, str):
-        return None
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.agent=agent
+    yield
 
-    query = unicodedata.normalize("NFKC", query)
-    query = query.strip()
+app = FastAPI(lifespan=lifespan)
 
-    if not query:
-        return None
+@app.post("/chat/{flow}/{user_id}")
+async def root(req:QARequest,
+               flow: Annotated[str, Path(title="Agent Flow selected")],
+               user_id: Annotated[str, Path(title="The ID of the user", min_length=5)]):
+    config = {"configurable": {"thread_id": str(user_id)}}
 
-    if len(query) > MAX_LENGTH:
-        return None
-
-    if re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", query):
-        return None
-
-    return query
-
-
-@app.post("/chat")
-async def root(req:QARequest):
-
-    return {"message": "Hello World"}
+    result=app.state.agent.invoke({"messages":[req.user_query]},config=config)
+    return {"result": result["return_result"],"flow":flow}

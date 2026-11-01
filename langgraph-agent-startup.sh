@@ -29,6 +29,7 @@ uv add \
   langchain-core \
   langchain-openai \
   langchain-tavily \
-  streamlit
+  streamlit \
+  openai
 
 echo "Done. Project set up in: $(pwd)"
