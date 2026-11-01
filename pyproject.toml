@@ -1,0 +1,26 @@
+[project]
+name = "omnichat-ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Yashas Samaga", email = "71977329+yashas224@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "black>=26.10.1",
+    "dotenv>=0.9.9",
+    "fastapi[standard]>=0.162.0",
+    "isort>=9.0.2",
+    "langchain-core>=1.7.3",
+    "langchain-openai>=1.7.3",
+    "langchain-tavily>=0.2.18",
+    "streamlit>=1.66.1",
+]
+
+[project.scripts]
+omnichat-ai = "omnichat_ai:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
