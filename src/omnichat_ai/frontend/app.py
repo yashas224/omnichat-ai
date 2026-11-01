@@ -1,4 +1,6 @@
+import base64
 import os
+from pathlib import Path
 from urllib.parse import quote
 
 import requests
@@ -12,6 +14,8 @@ MIN_USER_ID_LENGTH = 5
 BACKEND_URL = os.getenv("OMNICHAT_BACKEND_URL", "http://localhost:8000")
 REQUEST_TIMEOUT_SECONDS = 120
 METRICS_TIMEOUT_SECONDS = 5
+CHAT_HEIGHT_PIXELS = 600
+BACKGROUND_IMAGE = Path(__file__).parent / "assets" / "background.svg"
 
 
 def ask_backend(flow: str, user_id: str, user_query: str):
@@ -45,7 +49,41 @@ def render_metrics():
     errors_column.metric("LLM Errors", f"{metrics['llm_errors']:,}")
 
 
+def render_background():
+    image = base64.b64encode(BACKGROUND_IMAGE.read_bytes()).decode()
+    st.html(f"""
+    <style>
+    [data-testid="stApp"] {{
+        background: url("data:image/svg+xml;base64,{image}") center / cover fixed;
+    }}
+    [data-testid="stHeader"], [data-testid="stBottom"], [data-testid="stBottom"] > div {{
+        background: transparent;
+    }}
+    .st-key-chat_history {{
+        background: rgba(11, 16, 38, 0.65);
+        backdrop-filter: blur(6px);
+    }}
+    </style>
+    """)
+
+
+def render_message(message: dict):
+    if "content" in message:
+        st.markdown(message["content"])
+    elif "error" in message:
+        st.error(message["error"])
+    elif message["result"] is None:
+        st.warning("This question could not be processed. Please rephrase it and try again.")
+    else:
+        st.markdown(message["result"]["description"])
+        for point in message["result"]["sub_points"]:
+            st.markdown(f"- {point['content']}")
+            for source in point["sources"]:
+                st.caption(source)
+
+
 st.set_page_config(page_title="OmniChat AI")
+render_background()
 st.title("OmniChat AI")
 
 with st.sidebar:
@@ -61,25 +99,29 @@ elif not user_id:
 
 question = st.chat_input("Ask a question", disabled=not user_id_valid)
 
-if question:
-    with st.chat_message("user"):
-        st.markdown(question)
+# Kept per user so changing the User ID doesn't show another user's conversation
+messages = st.session_state.setdefault("messages", {}).setdefault(user_id, [])
 
-    with st.chat_message("assistant"):
-        try:
-            with st.spinner("Thinking..."):
-                result = ask_backend(FLOWS[selected_mode], user_id, question)
-        except requests.RequestException as error:
-            st.error(f"Could not get an answer from the backend: {error}")
-        else:
-            if result is None:
-                st.warning("This question could not be processed. Please rephrase it and try again.")
-            else:
-                st.markdown(result["description"])
-                for point in result["sub_points"]:
-                    st.markdown(f"- {point['content']}")
-                    for source in point["sources"]:
-                        st.caption(source)
+if messages or question:
+    with st.container(height=CHAT_HEIGHT_PIXELS, autoscroll=True, key="chat_history"):
+        for message in messages:
+            with st.chat_message(message["role"]):
+                render_message(message)
+
+        if question:
+            user_message = {"role": "user", "content": question}
+            messages.append(user_message)
+            with st.chat_message("user"):
+                render_message(user_message)
+
+            with st.chat_message("assistant"):
+                try:
+                    with st.spinner("Thinking..."):
+                        reply = {"role": "assistant", "result": ask_backend(FLOWS[selected_mode], user_id, question)}
+                except requests.RequestException as error:
+                    reply = {"role": "assistant", "error": f"Could not get an answer from the backend: {error}"}
+                messages.append(reply)
+                render_message(reply)
 
 # Rendered last so the numbers include the question answered in this run
 with metrics_section:
