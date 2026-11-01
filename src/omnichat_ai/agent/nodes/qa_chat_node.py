@@ -60,7 +60,7 @@ def qa_chat_node(state: MessagesState,config:RunnableConfig):
     )
     response:QAChatAgentResponse= result["structured_response"]
 
-    return {"messages" : result["messages"][len(state["messages"]):-1],
+    return {"messages" : result["messages"][len(state["messages"])::],
              "return_result":response.model_dump(),
              "flow":"qa_chat"}
 
